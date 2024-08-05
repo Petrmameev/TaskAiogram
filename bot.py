@@ -19,8 +19,12 @@ from db import db_setup, get_all_users, save_user
 from weather import get_current_weather
 
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    filename='app.log',
+    filemode='a'
 )
+
 
 bot = Bot(token=TOKEN)
 storage = MemoryStorage()
@@ -38,6 +42,7 @@ class WeatherState(StatesGroup):
 
 
 async def send_daily_notifications():
+    logging.info("Проверка отправки уведомлений...")
     conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
     cursor.execute("SELECT user_id, timezone FROM users")
@@ -49,7 +54,7 @@ async def send_daily_notifications():
             local_tz = pytz.timezone(timezone)
             local_now = datetime.now(local_tz)
 
-            if local_now.hour == 22 and local_now.minute == 00:
+            if local_now.hour == 16 and local_now.minute == 00:
                 await bot.send_message(user_id, "Не забудьте проверить уведомления!")
                 logging.info(f"Уведомление отправлено пользователю {user_id}")
         except Exception as e:
@@ -59,7 +64,7 @@ async def send_daily_notifications():
 
 
 def schedule_notifications(loop):
-    schedule.every().day.at("22:00").do(
+    schedule.every().day.at("16:00").do(
         lambda: asyncio.run_coroutine_threadsafe(send_daily_notifications(), loop)
     )
     while True:
@@ -112,9 +117,23 @@ async def process_age(message: types.Message, state: FSMContext):
 
 def get_timezone_keyboard():
     keyboard = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    timezones = pytz.all_timezones
-    for timezone in timezones:
+
+    # Список часовых поясов России
+    russian_timezones = [
+        'Europe/Moscow',  # Московское время
+        'Europe/Samara',  # Самарское время (UTC+4)
+        'Asia/Yekaterinburg',  # Екатеринбург (UTC+5)
+        'Asia/Omsk',  # Омск (UTC+6)
+        'Asia/Krasnoyarsk',  # Красноярск (UTC+7)
+        'Asia/Irkutsk',  # Иркутск (UTC+8)
+        'Asia/Vladivostok',  # Владивосток (UTC+10)
+        'Asia/Magadan',  # Магадан (UTC+10)
+        'Asia/Kamchatka',  # Камчатка (UTC+12)
+        'Asia/Sakhalin'  # Сахалин (UTC+11)
+    ]
+    for timezone in russian_timezones:
         keyboard.add(types.KeyboardButton(timezone))
+
     return keyboard
 
 
